@@ -88,6 +88,36 @@ has "passing command is not hung" "$OUT" "TEST_HUNG=false"
 OUT_FILE="$(printf '%s\n' "$OUT" | sed -n 's/^TEST_OUTPUT=//p')"
 has "captured output is preserved" "$(cat "$OUT_FILE")" "dev-ok"
 
+echo "── worktree safety: the runner must SEE the worktree ──"
+rm -f "$ROOT/.release-planning/EXEC-ENV.yml"
+eq "host harness ⇒ safe" "WORKTREE_SAFE=yes" "$(release_execenv_worktree_safe "$ROOT")"
+printf 'test_harness: external\ntest_exec_prefix: docker exec -w /workspaces/app app-django-1\n' > "$ROOT/.release-planning/EXEC-ENV.yml"
+eq "external prefix without {worktree} ⇒ unsafe (tests would hit the main checkout)" \
+   "WORKTREE_SAFE=no reason=test_exec_prefix_lacks_{worktree}_placeholder" "$(release_execenv_worktree_safe "$ROOT")"
+printf 'test_harness: external\ntest_exec_prefix: docker exec -w /workspaces/{worktree} app-django-1\n' > "$ROOT/.release-planning/EXEC-ENV.yml"
+eq "external prefix with {worktree} ⇒ safe" "WORKTREE_SAFE=yes" "$(release_execenv_worktree_safe "$ROOT")"
+printf 'test_harness: managed\n' > "$ROOT/.release-planning/EXEC-ENV.yml"
+has "managed ⇒ unsafe" "$(release_execenv_worktree_safe "$ROOT")" "WORKTREE_SAFE=no"
+rm -f "$ROOT/.release-planning/EXEC-ENV.yml"
+
+echo "── worktree placement + host→runner path mapping (quick tests ITS worktree) ──"
+eq "host harness ⇒ sibling worktree" "$ROOT/../release-worktrees/quick/q1" "$(release_execenv_worktree_path "$ROOT" q1)"
+printf 'test_harness: external\ntest_exec_prefix: docker exec -w {worktree} -e DB_TEST_NAME=test_{label} app-django-1\ntest_root_in_runner: /workspaces/app\n' > "$ROOT/.release-planning/EXEC-ENV.yml"
+eq "external harness ⇒ worktree INSIDE the mounted root" "$ROOT/.release-worktrees/quick/q1" "$(release_execenv_worktree_path "$ROOT" q1)"
+mkdir -p "$ROOT/.release-worktrees/quick/q1"
+eq "root maps to runner root" "/workspaces/app" "$(release_execenv_runner_path "$ROOT" "$ROOT")"
+eq "inner worktree maps to runner path" "/workspaces/app/.release-worktrees/quick/q1" "$(release_execenv_runner_path "$ROOT" "$ROOT/.release-worktrees/quick/q1")"
+eq "outside path is left as is" "/elsewhere/wt" "$(release_execenv_runner_path "$ROOT" /elsewhere/wt)"
+eq "prefix renders the RUNNER path of the worktree + label" \
+   "docker exec -w /workspaces/app/.release-worktrees/quick/q1 -e DB_TEST_NAME=test_q1 app-django-1" \
+   "$(execenv_prefix "$ROOT" "$ROOT/.release-worktrees/quick/q1" q1)"
+eq "in-place phase renders the runner root" \
+   "docker exec -w /workspaces/app -e DB_TEST_NAME=test_dev app-django-1" "$(execenv_prefix "$ROOT" "$ROOT" dev)"
+eq "safe with {worktree}" "WORKTREE_SAFE=yes" "$(release_execenv_worktree_safe "$ROOT")"
+printf 'test_harness: external\ntest_exec_prefix: bash {root}/scripts/dev-test {worktree}\n' > "$ROOT/.release-planning/EXEC-ENV.yml"
+eq "no test_root_in_runner ⇒ host paths unchanged" "bash $ROOT/scripts/dev-test /tmp/wt" "$(execenv_prefix "$ROOT" /tmp/wt dev)"
+rm -rf "$ROOT/.release-worktrees" "$ROOT/.release-planning/EXEC-ENV.yml"
+
 echo "── rendering + scheduler compatibility ──"
 eq "safe label retained" w1_t02_sess "$(release_execenv_label 'W1/T02 sess')"
 eq "render substitutes placeholders" "run /tmp/wt dev $ROOT" \

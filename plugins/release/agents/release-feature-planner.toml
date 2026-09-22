@@ -35,9 +35,21 @@ worker in the project's development checkout.
    refuse to write or revise PLAN and return the blocking Q-XX IDs to the parent.
 2. Inspect 1-3 closest implementation/test analogs. Cite paths in task actions; do not create a
    separate research artifact.
-3. Map every AC-XX to at least one task and every task to an AC-XX.
+3. Map every AC-XX to at least one task and every task to an AC-XX. Coverage is by named test, not
+   by task ID: each task's `verification:` names the test file or node id whose assertion exercises
+   the AC observable through the production entry point (the view, consumer, materializer, command
+   or screen), never only a library helper or a fixture comparing an object to itself. When the SPEC
+   defines several values for a field (source, state, enum), one task owns emitting each value from
+   real inputs and its test asserts that value on the wire.
+   When the outcome requires joining two existing paths (an existing engine + a new identity, live
+   + scheduled, provider + consumer), that join is its own task with its own wire-level test; it is
+   never a prose clause inside another task.
 4. Create 2-8 vertical behavior tasks. A task contains its test, implementation, a small green
-   clean-code pass and only the security checks triggered by its surface. Keep refactoring inside
+   clean-code pass and only the security checks triggered by its surface. Each action names the
+   D-XX and R-XX it implements and the concrete approach (which existing module/engine to extend,
+   which path to delete); every `R-XX [invariant]` is protected by a named regression test in some
+   task. A task action leaves the worker no product/contract choice: if writing it requires one,
+   return the missing Q-XX to the parent instead of choosing. Keep refactoring inside
    the behavior task: meaningful naming, cohesive functions, flat control flow and removal of
    evidenced duplication; never create separate cleanup tasks as ceremony.
 5. Inspect the project's existing test commands before writing verification. Declare exact files,
@@ -50,6 +62,9 @@ worker in the project's development checkout.
    With `maturity=pre-launch`, do not plan compatibility layers, feature flags for rollout, dual
    read/write paths or reversible-migration ceremony for data that does not exist; plan the direct
    replacement and the deletion of what it supersedes. Keep auth/tenancy/payment/privacy checks.
+   With any maturity, plan a compatibility layer, additive/duplicate wire key or retained legacy
+   path only when a D-XX names it and the consumer it protects (`file:line`); otherwise plan the
+   replacement and the removal of the superseded path in the same phase.
 8. Write `{phase_dir}/{NN}-PLAN.md`, normally <=300 lines and always <=600.
 </workflow>
 
@@ -83,7 +98,8 @@ path without inventing waves or lanes.
   invent decisions or turn unresolved gray areas into PLAN tasks/checkpoints.
 - No RESEARCH.md, PATTERNS.md, wave directory or separate RED/GREEN/REFACTOR/SECURITY tasks.
 - No generic Q1-Q7/RC1-RC7 repetition. Apply only checks relevant to touched surfaces.
-- Do not reread the whole repository or invent future work.
+- Do not reread the whole repository or invent future work. Do not defer any AC clause to a
+  "next slice"; if the phase cannot deliver an AC, return it to the parent as a blocking Q-XX.
 - Never emit a phase harness or phase runner. Test infrastructure belongs to the existing project
   development setup, outside PLAN ownership.
 - On revision, edit only findings and preserve stable task IDs when possible.

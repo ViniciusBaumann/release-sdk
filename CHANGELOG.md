@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.0] — 2026-09-22
+
+Driven by the hubus 133 / moblity-app 32 post-mortem: a C4 phase landed with the live half of its
+canonical wire stubbed (`fonte="horario"`, `eta_minutos=0`), a checker verdict of "PASS with declared
+pending", 1 of 20 decisions made by the user, and an app that then hid live ETAs. Every item below
+closes one mechanism that allowed it.
+
+### Added
+- `bin/release-spec-lint.js` + `test-spec-lint.sh`: every D-XX carries an origin (`USER` | `LOCK` |
+  `CODE:<file:line>` | `INFERRED`); `status: ready` forbids `INFERRED`; C2+ requires `## Domain rules`
+  with `R-XX [USER, kind]` (C2 ≥3, C3/C4 ≥5; ≥1 `invariant`, C3/C4 ≥1 `degraded`) and a non-empty
+  `## Out of scope`. `/release:spec` and the `/release:plan` preflight ask the domain rules first
+  and confirm every inferred decision in one batch before `ready`.
+- `[external-evidence: ...]` AC marker (spec time only): the only way an acceptance criterion may stay
+  open; the verifier reports it as `EXTERNAL`, never PASS.
+- `release_effective_maturity <root> [phase_dir]`: most restrictive maturity across this repo, the
+  SPEC and the paired repo — a wire/compat decision follows the consumer's maturity.
+- `{focused}` in `VERIFY-GATE.yml`: test targets implied by the diff against the base
+  (`release_focused_test_targets`, `.release-planning/.gate-base`); no targets ⇒ `SKIPPED_NO_TARGETS`.
+  Template gate now has `test-focused` / `test-full` / `test-serial` lanes.
+- `release_execenv_worktree_safe`, `release_execenv_worktree_path`, `release_execenv_runner_path` and
+  the `test_root_in_runner` EXEC-ENV key: `/release:quick` places its worktree INSIDE the mounted
+  root and the runner tests the unit's own code; a runner that cannot see a worktree is a hard stop.
+- `release_worker_model [C0-C4]`: C3/C4/strict makers floor at opus in both profiles.
+
+### Changed
+- `release:phase-verifier` / `loop-goal-verifier`: verdict is the literal `PASS` or `GAPS`; a
+  half-met AC is GAPS; hollow implementations (constant wire values, dead aliases, self-referential
+  tests, parallel engines) are `HOLLOW:` gaps; plan drift (approach the task did not name, files
+  outside `files:`) is `DRIFT:`.
+- `release:tdd-executor` / `code-fixer`: per-task clause ledger; `plan_conflict`,
+  `needs_scope_reduction` and `USER_INPUT_REQUIRED` are hard stops; SPEC/PLAN/CONTRACT are read-only
+  during execute (`.contract-sha` checked before land); compat layers only from a D-XX naming the
+  protected consumer with `file:line`.
+- `release-plan-lint.js`: `verification:` must name a test file or node id; with an Acceptance
+  mapping, every AC needs a task that claims it in `acceptance:` and names a test.
+- `feature-planner` / `plan-checker`: coverage by named test on the production path; joins between
+  existing engines are their own task; no AC clause deferred to a "next slice".
+
 ## [0.27.0] — 2026-09-09
 
 Driven by an audit of 139 real sessions (hubus + moblity-app, 2026-08-10 → 2026-09-09): the SDK

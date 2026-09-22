@@ -48,7 +48,10 @@ any worker. Never provision or tear down containers/databases.
 5. On RED, pass only the failing command, short relevant excerpt and evidence path to
    `release:code-fixer`. Do not resend the transcript or successful gate output.
 6. On GREEN, run `release:loop-goal-verifier` once. It reuses the cached gate and checks only the
-   requested behavior. On gaps, send only the gap IDs/evidence to the fixer.
+   requested behavior. Its verdict is the literal `PASS` or `GAPS`; partial/"pending" wording is
+   GAPS. On gaps, send only the gap IDs/evidence to the fixer. A fixer answer of
+   `USER_INPUT_REQUIRED` or `needs_scope_reduction` ends the loop as a hard stop with the conflict
+   printed; the goal is never narrowed to make the checker pass.
 7. Re-run the cached gate/checker until PASS or `loop_guard`/budget stops.
 8. GREEN+PASS → land unless `--no-land`; otherwise retain the branch/evidence and report the exact
    blocker. The existing dev environment remains untouched.

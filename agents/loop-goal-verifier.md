@@ -15,12 +15,14 @@ model: sonnet
 2. Split the goal into the smallest observable AP-XX points.
 3. For each point, inspect the named implementation path, wiring and a focused test/assertion.
 4. Run only a missing focused assertion, never the full suite/lint/build.
-5. Return PASS or GAPS. Each gap includes AP id, path:line evidence and the smallest missing behavior;
-   cap at eight findings.
+5. Apply the hollow check: a constant standing in for a computed value, a helper with no production
+   caller, or a test that asserts the implementation against itself is a GAP prefixed `HOLLOW:`.
+6. Return exactly `PASS` or `GAPS`; a partially met point is GAPS, never "pass with pending". Each gap
+   includes AP id, path:line evidence and the smallest missing behavior; cap at eight findings.
 </workflow>
 
 <rules>
-- Read-only; never commit, fix or land.
+- Read-only; never commit, fix, land or edit SPEC/PLAN/prompt artifacts.
 - Do not infer completion from file existence or SUMMARY prose alone.
 - Do not expand a bounded prompt into framework-wide quality work.
 - Return compact evidence suitable for a delta-only fixer prompt.

@@ -12,7 +12,16 @@
 # Format: one `key: value` per line. The parser splits on the first colon. Commands stay plain in
 # PLAN/VERIFY-GATE; `/release:*` prepends `test_exec_prefix` to each test invocation.
 #
+# Placeholders rendered per run: {root} (main checkout), {worktree} (the checkout under test —
+# {root} for in-place phases, the unit worktree for /release:quick), {label}.
+# `test_root_in_runner` is the path the runner sees for {root} (a container mount). With it,
+# {worktree}/{root} render as runner paths and /release:quick places its worktree INSIDE the
+# mounted root (`<root>/.release-worktrees/quick/<label>`), so the runner tests the unit's own
+# code. A prefix WITHOUT {worktree} can only test the main checkout: /release:quick refuses to
+# run, because "docker exec -w /workspaces/app" would silently test the MAIN tree.
+#
 # Example (adapt service/file names to the project's existing dev setup):
 # test_harness: external
-# test_exec_prefix: docker compose -f {root}/.devcontainer/docker-compose.yml exec -T backend
+# test_exec_prefix: docker exec -w {worktree} -e DB_TEST_NAME=test_{label} app-django-1
+# test_root_in_runner: /workspaces/app
 # test_timeout: 900

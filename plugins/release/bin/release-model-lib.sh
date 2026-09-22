@@ -35,7 +35,8 @@
 # Public API (all echo a value and return 0 — house style; callers capture the echo):
 #   release_model_profile               → `fable-opus` | `opus-sonnet`
 #   release_orchestrator_model          → `fable` | `opus`     (the main-loop driver + fan-out coordinator)
-#   release_worker_model                → `opus`  | `sonnet`   (makers, fixers, auditors, debuggers)
+#   release_worker_model [C0-C4]        → `opus`  | `sonnet`   (makers, fixers, auditors, debuggers);
+#                                         C3/C4/strict floors at opus in BOTH profiles (never a sonnet maker)
 #   release_worker_model_for <complexity>
 #                                       → per-TASK maker tier (v0.22.0). `complex`/`standard`/unknown/
 #                                         absent ⇒ release_worker_model (unchanged); `simple` ⇒ one
@@ -77,7 +78,15 @@ release_orchestrator_model() {
   return 0
 }
 
-release_worker_model() {
+# Optional phase complexity: C3/C4/strict work NEVER runs on a sonnet maker. A 32 KB C4 plan executed
+# by a sonnet worker shipped dead aliases, tautological tests and a stub emitter (hubus 133, 2026-09);
+# the checker climbed to the orchestrator tier but the maker did not. The floor is profile-invariant:
+# under opus-sonnet a strict maker is opus (same tier as the orchestrator — independence still comes
+# from a separate turn, not from a cheaper model). No arg keeps the legacy per-profile mapping.
+release_worker_model() {  # [C0-C4|lean|standard|strict]
+  case "${1:-}" in
+    C3|c3|3|C4|c4|4|strict) printf 'opus'; return 0 ;;
+  esac
   case "$(release_model_profile)" in opus-sonnet) printf 'sonnet';; *) printf 'opus';; esac
   return 0
 }
@@ -92,8 +101,11 @@ release_worker_model() {
 # sonnet — haiku stays reserved for mechanical/collection agents (release_mechanical_model), never
 # for code. So under opus-sonnet (worker=sonnet) `simple` is already at the floor ⇒ no change. A
 # missing / unknown label resolves to the worker tier, so a legacy PLAN behaves exactly as before.
-release_worker_model_for() {  # [complexity: simple|standard|complex]
-  local c="${1:-}" worker; worker="$(release_worker_model)"
+# Second optional arg is the PHASE complexity: a strict phase (C3/C4) floors every task at opus, so
+# `simple` no longer demotes below the strict floor.
+release_worker_model_for() {  # [task complexity: simple|standard|complex] [phase complexity: C0-C4|strict]
+  local c="${1:-}" worker; worker="$(release_worker_model "${2:-}")"
+  case "${2:-}" in C3|c3|3|C4|c4|4|strict) printf '%s' "$worker"; return 0 ;; esac
   case "$c" in
     simple)
       case "$worker" in
@@ -132,11 +144,11 @@ release_model_effort() {
 
 # ── public: human-readable one-liner for skill preambles + /release:models ────────────────────────
 release_model_summary() {
-  local prof orch work simple standard_checker strict_checker
+  local prof orch work simple strict_worker standard_checker strict_checker
   prof="$(release_model_profile)"; orch="$(release_orchestrator_model)"; work="$(release_worker_model)"
-  simple="$(release_worker_model_for simple)"
+  simple="$(release_worker_model_for simple)"; strict_worker="$(release_worker_model C3)"
   standard_checker="$(release_checker_model C2)"; strict_checker="$(release_checker_model C3)"
-  printf 'profile=%s  orchestrator=%s  worker=%s  worker[simple]=%s  checker[C2]=%s  checker[strict]=%s  effort=%s' \
-    "$prof" "$orch" "$work" "$simple" "$standard_checker" "$strict_checker" "$(release_model_effort)"
+  printf 'profile=%s  orchestrator=%s  worker=%s  worker[simple]=%s  worker[strict]=%s  checker[C2]=%s  checker[strict]=%s  effort=%s' \
+    "$prof" "$orch" "$work" "$simple" "$strict_worker" "$standard_checker" "$strict_checker" "$(release_model_effort)"
   return 0
 }

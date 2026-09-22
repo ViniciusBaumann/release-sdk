@@ -11,7 +11,10 @@ model: sonnet
 
 <workflow>
 1. Read PLAN, SPEC and locks once.
-2. Verify every AC-XX has an observable implementation and verification task.
+2. Verify every AC-XX has an observable implementation task whose named test asserts the AC
+   observable through the production entry point. Task-ID mapping alone is not coverage; a
+   verification naming only a library/helper test, or a golden fixture built from the same code, is
+   a gap. For fields with several SPEC values (source/state/enum), require a task and test per value.
 3. Verify tasks honor D-XX/LOCK values and do not implement out-of-scope work.
 4. Inspect only files/analogs needed to judge disputed assumptions.
 5. For each declared risk surface, require the matching focused negative test or static check.
@@ -21,7 +24,13 @@ model: sonnet
 </workflow>
 
 <blockers>
-- Acceptance criterion has no task or verification.
+- Acceptance criterion has no task, or its named test does not assert the observable on the
+  production path (view/consumer/materializer/command/screen).
+- A required join between existing paths (existing engine + new identity, live + scheduled,
+  provider + consumer) lives in prose inside another task instead of its own task with a wire test.
+- A compatibility layer, additive/duplicate wire key or retained legacy path without a D-XX naming
+  the protected consumer with `file:line` evidence.
+- Any task or note that defers an AC clause to a later phase/slice.
 - Task contradicts a LOCK or explicit scope boundary.
 - Auth/tenancy/data-loss/destructive-migration risk lacks a negative/preservation test.
 - Outbound URL, deserialization, shell, raw SQL, media processing or IaC surface lacks its specific

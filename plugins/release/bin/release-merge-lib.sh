@@ -168,6 +168,31 @@ release_project_setting() {  # <main_root> <key> → value of a `key: value` lin
   return 0
 }
 
+# Effective maturity for a phase: the MOST RESTRICTIVE value across this repo's PROJECT.md, the phase
+# SPEC frontmatter and the paired repo's PROJECT.md (`paired: /abs/path:NN` in the SPEC). hubus 133
+# read its own `live` and shipped an additive wire + legacy key for an app consumer that was still
+# pre-launch; the compat decision belongs to the consumer's maturity, not the provider's.
+# Output: `pre-launch` when any source says pre-launch; else the local value (may be empty).
+release_effective_maturity() {  # <main_root> [phase_dir] → pre-launch | live | ''
+  local root="${1:-.}" phase_dir="${2:-}" local_value spec paired_root paired_value spec_value
+  local_value="$(release_project_setting "$root" maturity)"
+  [ "$local_value" = "pre-launch" ] && { printf 'pre-launch'; return 0; }
+  if [ -n "$phase_dir" ] && [ -d "$phase_dir" ]; then
+    spec="$(find "$phase_dir" -maxdepth 1 -name '*-SPEC.md' 2>/dev/null | sort | head -1)"  # no glob: zsh nomatch
+    if [ -n "$spec" ]; then
+      spec_value="$(sed -n '2,40{s/^[[:space:]]*maturity:[[:space:]]*\([^ #]*\).*$/\1/p;}' "$spec" | head -1)"
+      [ "$spec_value" = "pre-launch" ] && { printf 'pre-launch'; return 0; }
+      paired_root="$(sed -n '2,40{s/^[[:space:]]*paired:[[:space:]]*\([^ #]*\):[0-9A-Za-z_-]*[[:space:]]*$/\1/p;}' "$spec" | head -1)"
+      if [ -n "$paired_root" ]; then
+        paired_value="$(release_project_setting "$paired_root" maturity)"
+        [ "$paired_value" = "pre-launch" ] && { printf 'pre-launch'; return 0; }
+      fi
+    fi
+  fi
+  printf '%s' "$local_value"
+  return 0
+}
+
 release_push_policy() {  # <main_root> → never | ask | auto  (unknown/absent ⇒ never: push == deploy for most repos)
   local v; v="$(release_project_setting "${1:-.}" push_after_land)"
   case "$v" in auto|ask) printf '%s' "$v";; *) printf 'never';; esac

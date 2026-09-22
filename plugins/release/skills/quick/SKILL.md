@@ -51,21 +51,33 @@ Score C0-C4 with `release-economy-lib.sh`.
 
 `--strict` forces the full gate and independent checker but does not create a fake phase.
 
-Read `maturity` from PROJECT.md (`release_project_setting "$MAIN_ROOT" maturity`). When it is
+Read `maturity` with `release_effective_maturity "$MAIN_ROOT"` (bin/release-merge-lib.sh). When it is
 `pre-launch`, do not add backward-compatibility shims, rollout flags or legacy fallbacks: replace and
-delete. Security, tenancy and data-loss floors are unchanged.
+delete. Security, tenancy and data-loss floors are unchanged. With any maturity, keep a legacy path
+only when the task names the consumer it protects.
 
 ## Checkout
 
-Create an isolated sibling worktree so multiple quick tasks can run in parallel:
+Create an isolated worktree so multiple quick tasks can run in parallel, placed where the
+project's runner can TEST IT:
 
+0. Source `release-execenv-lib.sh` and run `release_execenv_worktree_safe "$MAIN_ROOT"`. On
+   `WORKTREE_SAFE=no`, stop before any write: the runner cannot see a worktree, so its tests would
+   silently run against the main checkout. Print the one-line fix (`test_exec_prefix` with
+   `{worktree}` plus `test_root_in_runner: <container path of the root>` in
+   `.release-planning/EXEC-ENV.yml`) and end. Never fall back to testing the main tree.
 1. Resolve the caller root and its current branch as `BASE`; refuse detached HEAD. Record the base
    branch and starting commit before any write.
 2. A dirty caller checkout is allowed. Never stage, stash, commit, copy, or edit its uncommitted
    changes; the quick unit starts from the committed `BASE` tip.
 3. Create branch `quick/<timestamp>-<slug>` at `BASE` and add it at
-   `<main-root>/../release-worktrees/quick/<timestamp>-<slug>`. Validate that neither branch nor path
-   already exists, and never switch the caller checkout.
+   `release_execenv_worktree_path "$MAIN_ROOT" "<timestamp>-<slug>"` — a sibling for a host
+   runner, `<main-root>/.release-worktrees/quick/<timestamp>-<slug>` (inside the mounted root)
+   for an external runner. For the inside-root case, append `.release-worktrees/` to
+   `.git/info/exclude` once so the unit never shows as untracked in the main checkout. Validate
+   that neither branch nor path already exists, and never switch the caller checkout.
+   Compute the unit prefix with `execenv_prefix "$MAIN_ROOT" "$WORKTREE" "<label>"`; it renders the
+   runner-visible worktree path, so every focused test and the gate run against the unit's code.
 4. Mark the unit active for the prod guard: write `branch pid timestamp` to
    `<main-root>/.release-planning/.unit-active` (only when `.release-planning/` exists). With
    `--allow-prod`, also touch `.release-planning/.allow-prod`. Both are removed at land time.

@@ -22,10 +22,16 @@ Turn an ambiguous/high-risk phase into a compact executable contract. Do not pla
    files and cite path:line.
 4. Identify questions whose answers change scope, public contract, data model, security boundary or
    acceptance. Ignore generic framework preferences and choices established by a dominant pattern.
+   Start with the domain rules the SPEC still lacks (invariants that must keep working, degraded
+   states, identity, precedence, boundaries) — phrase them in product language with the `file:line`
+   premise attached, so the user corrects the premise. Never answer a domain question yourself.
 5. Return up to three questions at a time through the parent. There is no minimum question count.
 6. Return unresolved questions to the parent before any PLAN write. After the parent obtains answers,
-   update `{phase_dir}/{NN}-SPEC.md`: Outcome, In/Out, Acceptance criteria, Decisions, Open questions,
-   complexity/profile/status. Use stable AC-XX/D-XX/Q-XX IDs.
+   update `{phase_dir}/{NN}-SPEC.md`: Outcome, In/Out, Domain rules (`R-XX [USER, kind]`),
+   Acceptance criteria, Decisions, Open questions, complexity/profile/status. Use stable
+   AC-XX/R-XX/D-XX/Q-XX IDs. Tag every decision with its origin (`[USER]`, `[LOCK]`,
+   `[CODE: file:line]`, `[INFERRED]`); never write `[LOCKED]` without an origin, never convert a
+   proposal into `[USER]` without the user's answer.
 </workflow>
 
 <risk_dimensions>

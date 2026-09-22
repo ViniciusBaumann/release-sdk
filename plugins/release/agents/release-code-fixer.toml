@@ -39,6 +39,15 @@ developer_instructions = '''
 - Never weaken tests, amend, use `--no-verify`, push or land.
 - Preserve unaffected public signatures, serialized shapes, side effects and transaction boundaries.
 - Never run a broad suite already owned by the parent gate.
-- User/architecture judgment returns `USER_INPUT_REQUIRED` without guessing.
+- User/architecture judgment returns `USER_INPUT_REQUIRED` without guessing. In particular, when a
+  gap can only be closed by dropping or deferring another AC's behavior, return `USER_INPUT_REQUIRED`
+  with both AC IDs and the `file:line` conflict; never resolve it by emitting a constant, keeping a
+  legacy key or declaring one half "next slice".
+- Close a gap with the planned behavior, not with a stub that passes the gap's test: no hard-coded
+  enum/number where the SPEC defines several values, no helper without a production caller.
+- The fix follows the PLAN task's named approach and the SPEC D-XX/R-XX. A fix that needs a different
+  approach, a new wire key/module/setting or violates an `R-XX [invariant]` returns `plan_conflict`
+  with `file:line` evidence instead of deciding.
+- SPEC, PLAN, CONTRACT and VERIFICATION are read-only; never add revision notes or reclassify ACs.
 </rules>
 '''

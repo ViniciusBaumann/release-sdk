@@ -109,11 +109,63 @@ release_execenv_render() {  # $1 template, $2 worktree, $3 label, [$4 root]
   return 0
 }
 
+# A sibling worktree is only testable when the runner can SEE it. hubus mounted one checkout into
+# its container and `docker exec -w /workspaces/moblity ...` had no `{worktree}` placeholder, so
+# every quick worktree "passed pytest" against the MAIN checkout. host harness → safe; external →
+# safe only when the prefix template renders the worktree path.
+# Where a quick unit's worktree must live so the runner can test IT. A host runner sees any path,
+# so the classic sibling `<root>/../release-worktrees/quick/<label>` keeps the main tree's tooling
+# out of the unit. An external runner (docker exec) only sees what is mounted — the main checkout —
+# so the worktree goes INSIDE it: `<root>/.release-worktrees/quick/<label>` (excluded from git
+# status via .git/info/exclude by the caller).
+release_execenv_worktree_path() {  # $1 root, $2 label → host path for the unit worktree
+  local root="${1:-.}" label="${2:-unit}"
+  case "$(release_test_harness "$root")" in
+    external) printf '%s/.release-worktrees/quick/%s' "$root" "$label" ;;
+    *)        printf '%s/../release-worktrees/quick/%s' "$root" "$label" ;;
+  esac
+  return 0
+}
+
+# Map a host worktree path to the path the runner sees. `test_root_in_runner` is the container
+# path of {root} (hubus: /workspaces/moblity); a worktree inside {root} renders as
+# `<test_root_in_runner>/<relative>`, {root} itself as `<test_root_in_runner>`. Without the key the
+# host path is used unchanged (host wrappers such as `bash scripts/dev-test {worktree}`).
+release_execenv_runner_path() {  # $1 root, $2 host path → runner-visible path
+  local root="${1:-.}" p="${2:-}" mapped rel
+  mapped="$(release_execenv_get "$root" test_root_in_runner)"
+  [ -n "$mapped" ] && [ -n "$p" ] || { printf '%s' "$p"; return 0; }
+  root="$(cd "$root" 2>/dev/null && pwd -P || printf '%s' "$root")"
+  p="$(cd "$p" 2>/dev/null && pwd -P || printf '%s' "$p")"
+  case "$p" in
+    "$root") printf '%s' "$mapped" ;;
+    "$root"/*) rel="${p#"$root"/}"; printf '%s/%s' "$mapped" "$rel" ;;
+    *) printf '%s' "$p" ;;   # outside the mounted root: the runner cannot see it (worktree_safe says so)
+  esac
+  return 0
+}
+
+release_execenv_worktree_safe() {  # $1 root → WORKTREE_SAFE=yes | WORKTREE_SAFE=no reason=<why>
+  local root="${1:-.}" harness tpl
+  harness="$(release_test_harness "$root")"
+  case "$harness" in
+    host) echo "WORKTREE_SAFE=yes"; return 0 ;;
+    external)
+      tpl="$(release_execenv_get "$root" test_exec_prefix)"
+      case "$tpl" in
+        *"{worktree}"*) echo "WORKTREE_SAFE=yes"; return 0 ;;
+        *) echo "WORKTREE_SAFE=no reason=test_exec_prefix_lacks_{worktree}_placeholder"; return 0 ;;
+      esac ;;
+    *) echo "WORKTREE_SAFE=no reason=harness_${harness}"; return 0 ;;
+  esac
+}
+
 execenv_prefix() {  # $1 root, $2 worktree, $3 label → stable external prefix
-  local tpl
+  local tpl wt
   tpl="$(release_execenv_get "${1:-.}" test_exec_prefix)"
   [ -n "$tpl" ] || return 0
-  release_execenv_render "$tpl" "${2:-}" "${3:-dev}" "${1:-.}"
+  wt="$(release_execenv_runner_path "${1:-.}" "${2:-}")"
+  release_execenv_render "$tpl" "$wt" "${3:-dev}" "$(release_execenv_runner_path "${1:-.}" "${1:-.}")"
   return 0
 }
 

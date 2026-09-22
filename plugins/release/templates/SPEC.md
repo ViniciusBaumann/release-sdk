@@ -44,13 +44,30 @@ paired: {/abs/path/other-repo:NN}    # optional — set by /release:spec --paire
 - {Thing} — deferred to Phase {YY} because {reason}
 - {Thing} — not part of this product
 
+## Domain rules
+
+{Business rules in the user's words, ANSWERED BY THE USER (never inferred). `release-spec-lint.js`
+requires C2 ≥3 / C3-C4 ≥5, at least one `invariant` and (C3/C4) one `degraded`.}
+
+- R-01 [USER, invariant] {What must keep working / must never be turned off by this phase}
+- R-02 [USER, degraded] {What the user sees when data, GPS, network or permission is missing}
+- R-03 [USER] {Identity: when are two things the same thing?}
+- R-04 [USER] {Precedence: which source wins when they disagree?}
+- R-05 [USER] {Boundary: what is explicitly not this phase?}
+
 ## Acceptance Criteria
 
 {Measurable, observable assertions a UAT tester would check to declare phase done.}
 
 - [ ] {Specific observable behavior 1}
 - [ ] {Specific observable behavior 2}
-- [ ] {Specific observable behavior 3}
+- [ ] {Behavior whose proof needs data/hosts absent from dev} [external-evidence: {what proves it}]
+
+Every criterion is proven inside the phase by a focused test on the production path. Only evidence
+that cannot exist in dev (real captured data, production host clock, physical device) earns the
+`[external-evidence: ...]` marker, set here at spec time; the code path is still implemented and
+tested, and the verifier reports it as EXTERNAL, never PASS. No criterion is deferred to a
+"next slice" during execute.
 
 ## Constraints (from LOCKs)
 
@@ -59,6 +76,15 @@ paired: {/abs/path/other-repo:NN}    # optional — set by /release:spec --paire
 - LOCK-01: {e.g., Django 5.2 + DRF 3.16}
 - LOCK-02: {e.g., Multi-tenant — `empresa_id` scoping}
 - {Phase-specific constraint}: {e.g., "Must export 10k rows in <30s"}
+
+## Decisions
+
+{Every decision carries its ORIGIN. `status: ready` forbids `[INFERRED]`.}
+
+- D-01 [USER] {decision — user's answer in one line}
+- D-02 [LOCK] {decision — LOCK-XX}
+- D-03 [CODE: path/file.py:12] {decision — dominant existing pattern}
+- D-04 [INFERRED] {agent proposal awaiting the user's confirmation}
 
 ## Open Questions
 

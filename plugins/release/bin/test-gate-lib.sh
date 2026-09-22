@@ -225,6 +225,34 @@ PREFIX="$(execenv_prefix "$DP" "$DP" dev)"
 OUT="$(RELEASE_EXEC_PREFIX="$PREFIX" run_gate "$DP")"
 has "project prefix applied automatically" "$OUT" "GATE_STEP=dev PASS"
 
+echo "── #18 {focused}: impact-scoped targets from the diff; no targets ⇒ SKIPPED, never RED ──"
+FO="$SBX/focused"; mkdir -p "$FO/backend/apps/publico/tests" "$FO/backend/apps/core" "$FO/src/features/x" "$FO/.release-planning"
+git -C "$FO" init -q -b main; git -C "$FO" config user.email t@t; git -C "$FO" config user.name t
+: > "$FO/backend/apps/publico/tests/test_a.py"; : > "$FO/backend/apps/core/tests.py"; : > "$FO/backend/apps/core/models.py"
+: > "$FO/src/features/x/hook.ts"; : > "$FO/src/features/x/hook.test.ts"; : > "$FO/README.md"
+printf '.release-planning/\n' > "$FO/.gitignore"
+git -C "$FO" add -A; git -C "$FO" commit -qm base
+git -C "$FO" checkout -q -b feat/1
+printf 'x' > "$FO/backend/apps/publico/previsao.py"; printf 'y' > "$FO/backend/apps/core/models.py"; printf 'z' > "$FO/src/features/x/hook.ts"
+git -C "$FO" add -A; git -C "$FO" commit -qm change
+eq "targets: publico tests dir + core tests.py + sibling RN test" \
+   "backend/apps/core/tests.py backend/apps/publico/tests src/features/x/hook.test.ts" \
+   "$(release_focused_test_targets "$FO")"
+eq "base ref auto-detected as main" "main" "$(release_gate_base_ref "$FO")"
+eq "RELEASE_GATE_BASE wins" "feat/1" "$(RELEASE_GATE_BASE=feat/1 release_gate_base_ref "$FO")"
+eq "same tree as base ⇒ no targets" "" "$(RELEASE_GATE_BASE=feat/1 release_focused_test_targets "$FO")"
+printf 'test-focused: echo RUN {focused}\n' > "$FO/.release-planning/VERIFY-GATE.yml"
+OUT="$(run_gate "$FO")"
+has "placeholder substituted in the step" "$OUT" "GATE_STEP=test-focused PASS"
+eq "gate GREEN" "GREEN" "$(verdict "$OUT")"
+printf 'q' > "$FO/README.md"; git -C "$FO" add -A; git -C "$FO" commit -qm docs
+git -C "$FO" checkout -q -b docs-only main; printf 'r' > "$FO/README.md"; git -C "$FO" add -A; git -C "$FO" commit -qm docs2
+OUT="$(run_gate "$FO")"
+has "diff without test-bearing files ⇒ SKIPPED_NO_TARGETS" "$OUT" "GATE_STEP=test-focused SKIPPED_NO_TARGETS"
+eq "skipped step never turns the gate RED" "GREEN" "$(verdict "$OUT")"
+printf 'feat/1\n' > "$FO/.release-planning/.gate-base"
+eq ".gate-base file is honored" "feat/1" "$(release_gate_base_ref "$FO")"
+
 echo ""
 printf 'RESULT: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

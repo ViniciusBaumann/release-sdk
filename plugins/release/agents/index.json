@@ -222,7 +222,7 @@
     "model": "gpt-5.6-terra",
     "model_reasoning_effort": "medium",
     "output_token_budget": 900,
-    "description": "Independent strict/risk acceptance checker. Reuses a GREEN gate cached for the current git tree, then verifies SPEC acceptance, locks and triggered risk surfaces without rerunning the broad suite."
+    "description": "Independent strict/risk acceptance checker. Reuses a GREEN gate cached for the current git tree, then verifies SPEC acceptance, locks and triggered risk surfaces without rerunning the broad suite. Verdict is PASS or GAPS; a partially met acceptance criterion is a GAP."
   },
   {
     "name": "release-plan-checker",

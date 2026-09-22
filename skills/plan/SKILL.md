@@ -29,9 +29,12 @@ Source `bin/release-economy-lib.sh`; use the complexity/risk recorded in SPEC.
   deterministic lint, then spawn
   `release:plan-checker` only if judgment is still needed.
 
-When SPEC or PROJECT.md says `maturity: pre-launch`, the planner receives `maturity=pre-launch`: tasks
-replace and delete instead of adding compatibility layers, rollout flags or reversible-migration
-ceremony for data that does not exist yet. Risk floors for auth/tenancy/payments/privacy stay.
+Resolve maturity with `release_effective_maturity "$ROOT" "$PHASE_DIR"` (most restrictive of this
+PROJECT.md, the SPEC frontmatter and the paired repo's PROJECT.md). On `pre-launch` the planner
+receives `maturity=pre-launch`: tasks replace and delete instead of adding compatibility layers,
+rollout flags or reversible-migration ceremony for data that does not exist yet. Risk floors for
+auth/tenancy/payments/privacy stay. With any maturity, a compatibility layer or retained legacy path
+is planned only from a D-XX that names the protected consumer with `file:line` evidence.
 
 Never spawn a planner to discover decisions. Never spawn separate feature-researcher or
 pattern-mapper in the normal pipeline. The preflight and planner inspect only targeted code evidence;
@@ -55,19 +58,32 @@ do not materialize RESEARCH.md, PATTERNS.md or a broad assumptions inventory.
    loading/empty/error states and accessibility; and fullstack API/auth/error handoff. This is a risk
    lens, not a fixed questionnaire: there is no minimum question count and irrelevant dimensions are
    skipped.
-4. Prefer locks and clear dominant code patterns as evidence. LOW implementation choices stay planner
-   discretion. For C3/C4 or `--strict`, use at most one scoped clarification agent only when needed:
+4. Prefer locks and clear dominant code patterns as evidence — and tag the decision with that
+   origin (`[LOCK]`, `[CODE: file:line]`). LOW implementation choices (algorithm, library, internal
+   structure) stay planner discretion. The preflight NEVER locks on its own a decision that changes
+   what the user observes, a public/data contract, an invariant from `## Domain rules`, compat or
+   legacy retention, or an acceptance criterion: such a decision is asked, or written as
+   `[INFERRED]` and confirmed in the batch below. "PLAN PREFLIGHT"-style self-locked decisions are
+   not a category. For C3/C4 or `--strict`, use at most one scoped clarification agent only when needed:
    choose `release:spec-clarifier` for contract/acceptance ambiguity or
    `release:assumptions-analyzer` when hidden code coupling must be evidenced. Give paths and named
    modules, never copied file bodies; ask it for unresolved decisions plus `file:line` evidence only.
-5. Ask the user at most three unanswered, decision-changing questions per batch. After each batch,
+5. Ask the user at most three unanswered, decision-changing questions per batch. A question about
+   keeping a legacy shape or adding a compatibility layer must state, with grep evidence, who reads
+   the old shape today and what the paired consumer's maturity is; never present "it is in
+   production" as a premise without that evidence. After each batch,
    persist every answer as the next stable `D-XX [LOCKED]` in SPEC, remove or resolve its `Q-XX`, and
    preserve all existing AC/D/Q IDs. If legacy CONTEXT exists, mirror only the new D-XX entries there;
    never create CONTEXT for a new phase.
 6. Repeat targeted inspection and question batches until there are no HIGH questions and no MED
    question that changes architecture, public/data contract, security, migration/data-integrity,
-   concurrency or observable acceptance. Set SPEC `status: ready`. Do not create or revise PLAN,
-   invoke `release:feature-planner`, or commit a partial plan before this condition is true.
+   concurrency or observable acceptance. Then print, in one message, every decision the preflight
+   added or inferred (D-XX with origin) plus the R-XX domain rules, and ask the user to confirm or
+   correct them in one `AskUserQuestion`; confirmed proposals become `[USER]`. Run
+   `node "$RELEASE_PLUGIN_ROOT/bin/release-spec-lint.js" "{NN}-SPEC.md"`; a legacy SPEC whose
+   decisions lack origin tags is retagged here by evidence or by asking, never by guessing. Only
+   then set SPEC `status: ready`. Do not create or revise PLAN, invoke `release:feature-planner`,
+   or commit a partial plan before the lint passes.
 
 If the user cannot settle a required decision, leave SPEC `status: blocked`, report the exact Q-XX
 blocker and stop without touching PLAN. This is the only normal pre-planner stop.
@@ -87,7 +103,8 @@ blocker and stop without touching PLAN. This is the only normal pre-planner stop
 6. For strict work, run `release:plan-checker` after lint. It reviews acceptance coverage and actual
    risk surfaces; it does not repeat deterministic schema/dependency checks.
 7. Commit SPEC/legacy CONTEXT/PLAN together and report task count, critical path and whether parallel
-   execution is justified. The final PLAN is ready for `/release:execute`; it contains no unresolved
+   execution is justified. Record `sha256` of SPEC, PLAN and any CONTRACT in STATE.md as
+   `phase_{NN}_contract_sha`; execute refuses to land if they change underneath it. The final PLAN is ready for `/release:execute`; it contains no unresolved
    decision checkpoint and requires no second planning pass.
 
 ## Compact plan contract
@@ -114,8 +131,9 @@ execution: serial | parallel
 - files: [exact paths]
 - depends_on: []
 - acceptance: [AC-01]
-- action: concise imperative, including applicable D-XX
-- verification: focused deterministic command
+- action: concise imperative, including applicable D-XX and R-XX; the approach is named (which
+  engine/module to extend), so the worker has nothing left to decide
+- verification: focused deterministic command naming the test file or node id that asserts the AC on the production path
 - risk: none | auth | tenancy | migration | external-input | ...
 ```
 

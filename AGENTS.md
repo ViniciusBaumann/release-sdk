@@ -21,6 +21,7 @@
 - Edit guard: `bash bin/test-edit-guard.sh`.
 - Gate, execution environment, and planning libraries: `bash bin/test-gate-lib.sh`, `bash bin/test-execenv-lib.sh`, or `bash bin/test-planning-sync-lib.sh`.
 - Plan linter: `bash bin/test-plan-lint.sh`.
+- Spec linter (decision origin + domain-rule floor): `bash bin/test-spec-lint.sh`.
 - Merge-back engine (land/push/report): `bash bin/test-merge-lib.sh`.
 - GC engine: `bash bin/test-gc-lib.sh`.
 - Prod guard hook: `bash bin/test-prod-guard.sh`.

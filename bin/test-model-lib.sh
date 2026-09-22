@@ -18,6 +18,7 @@
 #   #11 effort follows complexity and honors CLAUDE_EFFORT
 #   #12 release_model_summary reflects the active mapping
 #   #13 release_worker_model_for: complexity-aware per-task tier, demote-only, sonnet floor
+#   #14 strict floor: C3/C4 makers are never sonnet in either profile; summary exposes worker[strict]
 #
 # Run: bash bin/test-model-lib.sh
 set -euo pipefail
@@ -119,6 +120,19 @@ for C in simple standard complex bogus ''; do
   case "$T" in haiku|fable) no "tier for '$C' stays in the code band" "got [$T]";; *) ok "tier for '${C:-<empty>}' stays in the code band ($T)";; esac
 done
 has "summary exposes the simple tier" "$(RELEASE_MODEL_PROFILE=fable-opus release_model_summary)" "worker[simple]=sonnet"
+
+echo "── #14 strict floor: a C3/C4 maker is never sonnet ──"
+eq "opus-sonnet: C3 worker → opus"     "opus"   "$(RELEASE_MODEL_PROFILE=opus-sonnet release_worker_model C3)"
+eq "opus-sonnet: C4 worker → opus"     "opus"   "$(RELEASE_MODEL_PROFILE=opus-sonnet release_worker_model C4)"
+eq "opus-sonnet: strict worker → opus" "opus"   "$(RELEASE_MODEL_PROFILE=opus-sonnet release_worker_model strict)"
+eq "opus-sonnet: C2 worker unchanged"  "sonnet" "$(RELEASE_MODEL_PROFILE=opus-sonnet release_worker_model C2)"
+eq "opus-sonnet: no arg unchanged"     "sonnet" "$(RELEASE_MODEL_PROFILE=opus-sonnet release_worker_model)"
+eq "fable-opus: C4 worker → opus"      "opus"   "$(RELEASE_MODEL_PROFILE=fable-opus release_worker_model C4)"
+eq "opus-sonnet: simple task in C4 phase stays opus (no demotion below strict floor)" "opus" \
+   "$(RELEASE_MODEL_PROFILE=opus-sonnet release_worker_model_for simple C4)"
+eq "fable-opus: simple task in C3 phase stays opus" "opus" "$(RELEASE_MODEL_PROFILE=fable-opus release_worker_model_for simple C3)"
+eq "fable-opus: simple task in C2 phase still demotes" "sonnet" "$(RELEASE_MODEL_PROFILE=fable-opus release_worker_model_for simple C2)"
+has "summary exposes worker[strict]=opus under opus-sonnet" "$(RELEASE_MODEL_PROFILE=opus-sonnet release_model_summary)" "worker[strict]=opus"
 
 echo ""
 printf 'RESULT: %d passed, %d failed\n' "$PASS" "$FAIL"

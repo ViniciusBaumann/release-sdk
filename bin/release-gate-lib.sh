@@ -209,8 +209,62 @@ _gate_all_failures_are_baseline() {  # $1 root, $2 step name, $3 output → 0 wh
 }
 
 # ── public: run the gate ─────────────────────────────────────────────────────────────────────────
+# ── impact-scoped test targets ────────────────────────────────────────────────────────────────────
+# A 12k-test suite (hubus: ~50 min) never runs per loop iteration, so the gate degraded into a hand
+# whitelist that silently missed every new test module. `{focused}` in a VERIFY-GATE command is
+# replaced by the test targets IMPLIED BY THE DIFF against the base ref; a step with no targets is
+# SKIPPED (not RED), and the broad suite stays a separate, land-time step.
+release_gate_base_ref() {  # <root> → the ref the phase diff is measured against
+  local root="${1:-.}" ref="${RELEASE_GATE_BASE:-}" cand
+  [ -n "$ref" ] && { printf '%s' "$ref"; return 0; }
+  [ -f "$root/.release-planning/.gate-base" ] && ref="$(head -1 "$root/.release-planning/.gate-base" 2>/dev/null)"
+  [ -n "$ref" ] && { printf '%s' "$ref"; return 0; }
+  for cand in main master dev develop; do
+    git -C "$root" rev-parse --verify -q "$cand" >/dev/null 2>&1 && { printf '%s' "$cand"; return 0; }
+  done
+  return 0
+}
+
+release_focused_test_targets() {  # <root> [base_ref] → space-separated test paths implied by the diff
+  local root="${1:-.}" base="${2:-}" head_ref f app tests dir stem sib out=""
+  [ -n "$base" ] || base="$(release_gate_base_ref "$root")"
+  [ -n "$base" ] || return 0
+  head_ref="$(git -C "$root" merge-base "$base" HEAD 2>/dev/null)" || return 0
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    case "$f" in
+      # Django: any file under backend/apps/<app>/ → that app's tests (dir or module)
+      backend/apps/*/*|apps/*/*)
+        app="${f#backend/}"; app="${app#apps/}"; app="${app%%/*}"
+        for dir in "backend/apps/$app" "apps/$app"; do
+          [ -d "$root/$dir" ] || continue
+          if [ -d "$root/$dir/tests" ]; then tests="$dir/tests"
+          elif [ -f "$root/$dir/tests.py" ]; then tests="$dir/tests.py"
+          else tests=""; fi
+          [ -n "$tests" ] && out="$out $tests"
+          break
+        done
+        ;;
+      # React/RN: a changed test file is a target; a changed module pulls its sibling test(s)
+      src/*.test.[jt]s|src/*.test.[jt]sx|src/*.spec.[jt]s|src/*.spec.[jt]sx|src/*/__tests__/*)
+        [ -f "$root/$f" ] && out="$out $f" ;;
+      src/*.[jt]s|src/*.[jt]sx)
+        dir="${f%/*}"; stem="${f##*/}"; stem="${stem%.*}"
+        for sib in "$dir/$stem".test.ts "$dir/$stem".test.tsx "$dir/$stem".test.js "$dir/$stem".test.jsx \
+                   "$dir/$stem".spec.ts "$dir/$stem".spec.tsx "$dir/__tests__/$stem".test.ts "$dir/__tests__/$stem".test.tsx; do
+          [ -f "$root/$sib" ] && out="$out $sib"
+        done
+        ;;
+    esac
+  done <<EOF2
+$(git -C "$root" diff --name-only "$head_ref" HEAD 2>/dev/null)
+EOF2
+  printf '%s\n' "$out" | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' | sed 's/ $//'
+  return 0
+}
+
 _release_run_gate_steps() { # <root> <steps>
-  local root="$1" steps="$2" failfast="${GATE_FAILFAST:-1}" line name cmd out rc verdict="" any=0 red=0 ev=""
+  local root="$1" steps="$2" failfast="${GATE_FAILFAST:-1}" line name cmd out rc verdict="" any=0 red=0 ev="" targets
   local meta outf hung bounded elapsed timeout step_fp step_cache cache_dir
   [ -n "$steps" ] || { echo "GATE="; return 0; }   # nothing resolved → caller decides
   cache_dir="$root/.release-planning/.gate-cache/steps"
@@ -221,6 +275,15 @@ _release_run_gate_steps() { # <root> <steps>
     name="$(printf '%s' "$name" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
     cmd="$(printf '%s'  "$cmd"  | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
     [ -n "$cmd" ] || continue
+    case "$cmd" in *"{focused}"*)
+      targets="$(release_focused_test_targets "$root")"
+      if [ -z "$targets" ]; then
+        echo "GATE_STEP=$name SKIPPED_NO_TARGETS"   # diff touches no test-bearing app/module
+        any=1; continue
+      fi
+      cmd="${cmd//\{focused\}/$targets}"
+      ;;
+    esac
     [ -z "${RELEASE_EXEC_PREFIX:-}" ] || cmd="$RELEASE_EXEC_PREFIX $cmd"
     any=1
     step_fp="$(_release_gate_step_fingerprint "$root" "$name" "$cmd")"

@@ -33,8 +33,22 @@ description: >
    worktree for normal execution.
 6. Mark the unit active for the prod guard: write `feat/{NN}-{slug} <pid> <iso>` to
    `.release-planning/.unit-active`; with `--allow-prod` also touch `.release-planning/.allow-prod`.
-   Both are removed at land time. Read `maturity` (`release_project_setting "$ROOT" maturity`); tell the
-   worker `maturity=pre-launch` when set, so it replaces instead of shimming.
+   Both are removed at land time. Read `maturity` with
+   `release_effective_maturity "$ROOT" "$PHASE_DIR"` (most restrictive across this repo, the SPEC
+   and the paired repo); tell the worker `maturity=pre-launch` when set, so it replaces instead of
+   shimming.
+7. Freeze the contract: `shasum -a 256 "$PHASE_DIR"/*-SPEC.md "$PHASE_DIR"/*-PLAN.md
+   "$PHASE_DIR"/*-CONTRACT.md 2>/dev/null > "$PHASE_DIR/.contract-sha"`. SPEC, PLAN and CONTRACT are
+   read-only until land. Execute, the worker, the fixer and the checker never write them, never add
+   "revision notes", never reclassify an AC. A changed hash at land time is a blocker (see below).
+
+## Gate base ref
+
+Write the recorded base branch to `.release-planning/.gate-base` at preflight (removed at land),
+so a VERIFY-GATE step using `{focused}` measures the diff against the right base. `{focused}`
+expands to the test targets implied by the diff (see `templates/VERIFY-GATE.yml`); a step with no
+targets is SKIPPED. Keep the broad suite as its own step: loops pay only for the focused step until
+the tree changes, and the broad step runs once on the final committed tree before land.
 
 ## Development test harness — mandatory
 
@@ -73,8 +87,13 @@ running; if it cannot test the current checkout, stop with that exact blocker.
 - C2-C4: one `release:tdd-executor` for the complete compact plan. Treat legacy
   `execution: parallel` as serial; one shared dev checkout/harness is the concurrency boundary.
 
-Workers receive paths and task IDs, never copied PLAN bodies or the parent transcript. Use the
-complexity-based model/effort policy; no universal max effort. They also receive the exact
+Workers receive paths and task IDs, never copied PLAN bodies or the parent transcript. Tell the
+worker the PLAN is binding: it returns a per-task clause ledger (see `release:tdd-executor`
+`<plan_fidelity>`) and stops with `plan_conflict` instead of choosing an approach the task did not
+name. SUMMARY carries that ledger; the checker reads it for `DRIFT:` findings. Resolve the
+maker tier with `release_worker_model "$COMPLEXITY"` and effort with `release_model_effort
+"$COMPLEXITY"`: C3/C4/strict makers are never sonnet (the lib floors them at opus in both profiles);
+no universal max effort. They also receive the exact
 `test_exec_prefix`; they must not invent a runner, start/recreate containers or provision a second
 environment.
 
@@ -118,12 +137,24 @@ not create a separate cleanup phase or broaden task scope.
    and reuses earlier PASS steps when a later step failed on the same committed tree.
 3. Standard work lands on GREEN without another full-suite run.
 4. Strict/risk work spawns `release:phase-verifier` once. It reuses the cached GREEN evidence and
-   checks acceptance/locks/risk surfaces without rerunning the suite.
+   checks acceptance/locks/risk surfaces without rerunning the suite. Its verdict is the literal
+   word `PASS` (optionally `PASS external=AC-XX,...` for criteria the SPEC marked
+   `[external-evidence]` before execute started) or `GAPS`. Any other wording — "PASS with declared
+   pending", "pendências declaradas", "partial", "next slice" — is GAPS. Half-met criteria and
+   `HOLLOW:` findings are GAPS.
 5. `--loop` may feed RED/gaps to `release:code-fixer` under economy-based caps. Without `--loop`,
    stop after the first RED/GAPS and retain the branch/working tree for `--resume`.
-6. Sync SUMMARY/VERIFICATION/progress before landing. On GREEN (+ checker PASS when required), land
-   the in-place feature branch onto the recorded base with `land_branch`. On RED, conflict or failed
-   artifact sync, retain the branch and evidence.
+   A worker or fixer returning `plan_conflict`, `needs_scope_reduction` or `USER_INPUT_REQUIRED` is
+   a hard stop, not a loop iteration: retain the branch, print the task/AC IDs and the `file:line` conflict, and tell
+   the user the scope changes only through `/release:spec --revise` + `/release:plan --revise`
+   (new D-XX, new contract hash), after which `--resume` continues. Never resolve it by narrowing
+   the delivery, keeping a legacy path or writing a note into the SPEC.
+6. Sync SUMMARY/VERIFICATION/progress before landing. Re-run the `.contract-sha` check; a changed
+   SPEC/PLAN/CONTRACT hash retains the branch with `BLOCKER: contract changed during execute`. On
+   GREEN (+ checker literal PASS when required), land the in-place feature branch onto the recorded
+   base with `land_branch`. On RED, conflict or failed artifact sync, retain the branch and evidence.
+   SUMMARY lists every EXTERNAL AC with what evidence is still owed; the STATE note says it in plain
+   words ("aguarda evidência externa: ..."). There is no "pending" AC that is not EXTERNAL.
    There is no environment cleanup because the SDK created none.
    Remove `.unit-active` / `.allow-prod`; `progress_clear` the phase.
 7. Push decision, only after `RESULT=merged`: `--push` or `release_push_policy` = `auto` →

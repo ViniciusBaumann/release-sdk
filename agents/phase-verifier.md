@@ -58,6 +58,13 @@ Look for, per AC:
 - A test that builds `expected` from the same function under test, compares an object to itself,
   asserts only on a library helper without the production entry point, or passes with the
   implementation stubbed out.
+- A test that enshrines a constant where the AC requires a computed/live/selected value (asserts
+  `fonte == "horario"` while the AC says the live source wins when present; asserts the default
+  enum, `0`, `None` or the fixture's own input as the result). Before reading the tests, write
+  the expected observable of each AC in your own words from the SPEC text; a test whose
+  expectation contradicts that sentence is HOLLOW even when it is green.
+- Test volume is not evidence: a task with many tests and no test per AC clause is a GAP for the
+  uncovered clause; a task whose tests all target helpers is a GAP for the production path.
 - A second parallel path that reproduces existing behavior instead of joining it, when a D-XX or
   task said "reuse/extend the existing engine".
 Cite `file:line` for each hollow finding and name the smallest real behavior missing.

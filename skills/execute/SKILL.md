@@ -135,7 +135,10 @@ not create a separate cleanup phase or broaden task scope.
 2. After all commits are on the phase branch, re-export the dev prefix and run exactly one
    `run_gate_cached "$ROOT" full`. The gate announces every step, bounds it with `test_timeout`,
    and reuses earlier PASS steps when a later step failed on the same committed tree.
-3. Standard work lands on GREEN without another full-suite run.
+3. Standard work lands on GREEN without another full-suite run. Every `GATE_WARN=` line the gate
+   printed goes verbatim into SUMMARY and the final report: `no-broad-step` means the land ran a
+   hand whitelist instead of the suite, `phase-local-gate` means someone swapped the project gate
+   per phase. Never fix either by editing VERIFY-GATE.yml inside execute; report it.
 4. Strict/risk work spawns `release:phase-verifier` once. It reuses the cached GREEN evidence and
    checks acceptance/locks/risk surfaces without rerunning the suite. Its verdict is the literal
    word `PASS` (optionally `PASS external=AC-XX,...` for criteria the SPEC marked

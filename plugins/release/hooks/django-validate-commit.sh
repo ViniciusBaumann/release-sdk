@@ -86,6 +86,22 @@ JSON
   exit 2
 fi
 
+# A separate "RED" / "reproduce" commit is the TDD ritual the executors are told not to perform:
+# the test lands in the same logical commit as the behavior it proves (hubus: 148 such commits in
+# 45 days, none of which prevented the bugs they mirrored). A regression test for an already-shipped
+# bug is fine — describe the behavior it protects, not the ritual step.
+if [[ "$SUBJECT" =~ ^test(\([a-z0-9_,-]+\))?!?:[[:space:]]*(RED|GREEN)([[:space:]]|$|[-—:]) ]] || \
+   [[ "$SUBJECT" =~ ^test(\([a-z0-9_,-]+\))?!?:[[:space:]]*(reproduz|reproduce|reproduzir|repro)([[:space:]]|$|:) ]]; then
+  cat <<'JSON'
+{
+  "decision": "block",
+  "code": "RED_RITUAL_COMMIT",
+  "reason": "Separate RED/reproduce test commits are not allowed: commit the test together with the behavior it proves (one logical commit). For a regression test of an already-fixed bug, name the behavior it protects instead."
+}
+JSON
+  exit 2
+fi
+
 if [ ${#SUBJECT} -gt 72 ]; then
   cat <<JSON
 {

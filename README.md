@@ -161,6 +161,8 @@ mortos) e o SessionStart avisa quando há ≥3 itens.
 │  OBSERVABILIDADE                                                          │
 │  /release:tokens         →  dashboard token tracker (USD/BRL, cache hit,  │
 │                            por sessão/dia/skill/projeto/modelo)           │
+│  /release:statusline     →  barra de status: modelo, branch, fase/task    │
+│                            em andamento, contexto %, custo, limites 5h/7d │
 ├───────────────────────────────────────────────────────────────────────────┤
 │  AUTONOMOUS                                                               │
 │  /release:autonomous     →  roda todas fases pendentes do ROADMAP em      │

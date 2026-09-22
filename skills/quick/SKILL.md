@@ -76,8 +76,15 @@ pass it to the worker. Never start/recreate Docker resources.
 3. Implement the requested behavior; apply only relevant lint/security/performance checks.
 4. Run the focused test and lint touched files. Avoid app-wide commands.
 5. Commit once per logical behavior; separate commits only for independently revertible changes.
-6. Re-export `RELEASE_EXEC_PREFIX`, source `release-gate-lib.sh`; run
-   `run_gate_cached "$ROOT" quick`, or `full` for `--strict`.
+6. Measure the unit before gating: `git diff --shortstat BASE..HEAD` excluding test files. More
+   than 10 production files or 400 production lines means the task outgrew a quick; it does not
+   stop, it escalates: treat the rest of this workflow as `--strict` (full gate + checker) and say
+   so in the report. This is objective, not a judgment call, and never skipped.
+   Re-export `RELEASE_EXEC_PREFIX`, source `release-gate-lib.sh`; run
+   `run_gate_cached "$ROOT" quick` (lint, migrations and the diff-implied `{focused}` tests: the
+   maker's own run is a claim, the gate's run is the evidence), or `full` for `--strict`/escalated.
+   Copy every `GATE_WARN=` line the gate prints into the report verbatim; a `no-broad-step` or
+   `phase-local-gate` warning means the project gate needs repair (`templates/VERIFY-GATE.yml`).
 7. For `--strict`, run `release:loop-goal-verifier` once against the request and cached gate. It
    must not rerun the suite.
 8. GREEN (+ strict PASS) → call `land_branch` for the quick branch/worktree unless `--no-merge`.

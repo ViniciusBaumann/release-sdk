@@ -38,6 +38,7 @@ and landing.
    task, re-read only that task block and number its action clauses (C1..Cn) in the ledger below.
 3. Inspect the exact target files and one closest test/implementation analog.
 4. For behavior changes, write/adjust the smallest focused test first and observe a relevant failure.
+   The test is the domain oracle, not a mirror of the code (see `test_oracle` below).
    Documentation, formatting and mechanical config changes may skip ceremonial RED.
 5. Implement the smallest complete behavior, then perform the mandatory clean-code pass below while
    the focused test remains green.
@@ -56,9 +57,27 @@ and landing.
    the plan-fidelity ledger below.
 </workflow>
 
+<test_oracle>
+A test proves an AC/R-XX clause only when its expected values come from the SPEC/PLAN text, a
+fixture the clause describes, or an independent calculation — never from running the code under
+test and pasting what it returned. Rules:
+- Name the clause in the test name or docstring (`AC-03`, `R-02`) and assert the observable the
+  clause states through the production entry point (view, consumer, task, command), not a helper.
+- Where the clause says a value is computed, derived, live or chosen among several, the test
+  feeds inputs that make the computed value differ from every default/constant and asserts that
+  difference. Asserting the constant (`fonte == "horario"`, `eta_minutos == 0`, `confianca ==
+  "baixa"`) where the clause requires a computed value is a hollow test and fails the checker.
+- One focused test per clause; add a second case only for a boundary the clause names. No
+  parameter matrices, no re-testing library or framework behavior, no test for a private helper
+  when the production path can be exercised. Test lines should not exceed production lines for a
+  task unless the task itself is test-only.
+- Never author the test after the implementation to "lock in" its current output; if the
+  behavior was already built, derive the expectation from the clause text first, then run.
+</test_oracle>
+
 <plan_fidelity>
 The PLAN is the instruction, not a suggestion. Per task keep a ledger
-`{task: T0x, clauses: [{id: C1, text: "<clause gist>", status: done, evidence: "<test id | commit>"}]}`
+`{task: T0x, test_runs: <n>, clauses: [{id: C1, text: "<clause gist>", status: done, evidence: "<test id | commit>"}]}`
 and return it. Rules:
 - Every clause of `action:` ends `done` with evidence; there is no `deviated`, `partial` or
   `deferred` status. Implement the approach the clause NAMES (extend engine X, delete path Y);
@@ -101,6 +120,9 @@ optional cleanup task.
 <budgets>
 - Normally one failing and one passing test invocation per behavior.
 - Refactoring may add passing invocations because every logical baby step must return to green.
+- Hard cap: 8 test-runner invocations per task (pytest/vitest, any scope). Count them in the
+  ledger as `test_runs`. Reaching the cap with a red test ends the task as `blocked` with the last
+  evidence excerpt and the hypothesis under test; do not keep iterating, do not widen the target set.
 - Retry only after a real failure and at most twice before returning evidence.
 - No child agents, test-discover, test-runner, full-suite or final checker.
 - No broad repository scan or copied logs; store long output and return a short excerpt/path.

@@ -83,6 +83,7 @@ release_default_gate() {  # $1 stack, $2 root → echoes `name: command` lines (
     django)
       printf 'lint: ruff check %s\n'                              "$pyroot"
       printf 'migrate: python %s makemigrations --check --dry-run\n' "$mp"
+      printf 'test-focused: pytest {focused} -q\n'
       printf 'test: pytest %s -q\n'                               "$pyroot"
       ;;
     react)
@@ -99,7 +100,10 @@ release_default_gate() {  # $1 stack, $2 root → echoes `name: command` lines (
   esac
 }
 
-release_default_quick_gate() { # $1 stack, $2 root → cheap checks; focused tests ran in the maker
+release_default_quick_gate() { # $1 stack, $2 root → cheap checks + the diff-implied focused tests
+  # The maker's own focused run is a claim, not evidence: the quick gate re-runs `{focused}` (the
+  # test targets implied by the diff; SKIPPED when the diff touches no test-bearing surface) so a
+  # quick never lands on lint alone. The broad suite still stays out of the quick profile.
   local stack="$1" root="$2" mp="manage.py" pyroot="." feroot="."
   [ -f "$root/backend/manage.py" ] && { mp="backend/manage.py"; pyroot="backend"; }
   [ -f "$root/frontend/package.json" ] && feroot="frontend"
@@ -107,9 +111,13 @@ release_default_quick_gate() { # $1 stack, $2 root → cheap checks; focused tes
     django)
       printf 'lint: ruff check %s\n' "$pyroot"
       printf 'migrate: python %s makemigrations --check --dry-run\n' "$mp"
+      printf 'test-focused: pytest {focused} -q --reuse-db\n'
       ;;
     react)
       printf 'lint: npm --prefix %s run lint\n' "$feroot"
+      if grep -q '"vitest"' "$root/$feroot/package.json" 2>/dev/null; then
+        printf 'test-focused: npm --prefix %s exec -- vitest run {focused}\n' "$feroot"
+      fi
       ;;
     fullstack)
       release_default_quick_gate django "$root"
@@ -353,10 +361,53 @@ EOF
   return 0
 }
 
+# ── gate audit ───────────────────────────────────────────────────────────────────────────────────
+# A gate is trusted at land time, so it must be able to catch what it is trusted to catch. hubus
+# drifted into a hand whitelist of RLS files (no broad suite, no {focused}, per-phase copies) and
+# shipped phases whose only test evidence was the maker's own run. Warnings never change the
+# verdict; execute/quick print them so the drift is visible on every land.
+release_gate_audit() {  # [root] → zero or more `GATE_WARN=<code> <detail>` lines
+  local root steps line name cmd broad=0 focused=0
+  root="$(release_gate_root "${1:-}")"
+  steps="$(release_resolve_gate "$root")"
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    name="${line%%:*}"; cmd="${line#*:}"
+    case "$cmd" in *"{focused}"*) focused=1; continue;; esac
+    case "$cmd" in
+      *pytest*|*vitest*|*jest*|*"run test"*)
+        case "$cmd" in *test_*.py*|*.test.*|*"::"*) ;; *) broad=1;; esac
+        case "$cmd" in *--create-db*)
+          echo "GATE_WARN=create-db step=$name (recreates the test DB on every run; use --reuse-db)";;
+        esac
+        ;;
+    esac
+  done <<EOF2
+$steps
+EOF2
+  [ "$broad" = 1 ] || echo "GATE_WARN=no-broad-step (no pytest/vitest step runs the full suite: land trusts a hand whitelist; add a broad step and keep {focused} for loops)"
+  [ "$focused" = 1 ] || echo "GATE_WARN=no-focused-step (no {focused} step: every iteration pays the whitelist instead of the diff-implied tests)"
+  # A per-phase gate copy in a phase still in flight (no SUMMARY yet) means the project gate was
+  # swapped for this phase; archived copies of finished phases are history, not drift.
+  # `find`, not shell globs: this lib is sourced by zsh (nomatch aborts the command) and bash alike.
+  # Copies older than a week or in a phase that already has SUMMARY/VERIFICATION are history.
+  find "$root/.release-planning/phases" -mindepth 2 -maxdepth 2 -name '*VERIFY-GATE*' -mtime -7 2>/dev/null |
+    while IFS= read -r copy; do
+      [ -n "$copy" ] || continue
+      if find "${copy%/*}" -maxdepth 1 \( -name '*SUMMARY.md' -o -name '*VERIFICATION.md' \) 2>/dev/null | grep -q .; then
+        continue
+      fi
+      echo "GATE_WARN=phase-local-gate (${copy#"$root"/}: the project gate is never swapped per phase; land runs the root VERIFY-GATE.yml)"
+      break
+    done
+  return 0
+}
+
 run_gate() {  # [root] [phase]
   local root steps
   root="$(release_gate_root "${1:-}")"
   steps="$(release_resolve_gate "$root")"
+  release_gate_audit "$root"
   _release_run_gate_steps "$root" "$steps"
 }
 

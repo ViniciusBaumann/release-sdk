@@ -18,6 +18,7 @@
 #   #15 every step announces itself and honors EXEC-ENV test_timeout
 #   #16 successful steps survive a later RED and are reused on an unchanged tree
 #   #17 stable project dev prefix is applied by the gate
+#   #19 gate audit: whitelist / missing {focused} / --create-db / per-phase gate copies ⇒ GATE_WARN
 #
 # Run: bash bin/test-gate-lib.sh
 set -euo pipefail
@@ -164,7 +165,28 @@ Q="$SBX/quick"; mkdir -p "$Q"; touch "$Q/manage.py"
 OUT="$(release_resolve_quick_gate "$Q")"
 has "quick keeps lint" "$OUT" "ruff check"
 has "quick keeps migration drift" "$OUT" "makemigrations --check"
-hasnt "quick omits full pytest" "$OUT" "pytest"
+hasnt "quick omits the broad suite" "$OUT" "pytest . -q"
+has "quick re-runs the diff-implied focused tests" "$OUT" "pytest {focused}"
+
+echo "── #19 gate audit: a hand whitelist / per-phase gate copy is warned about, never hidden ──"
+GA="$SBX/audit"; mkdir -p "$GA/.release-planning/phases/07-x"; touch "$GA/manage.py"
+printf 'lint: true\ntest-rls: pytest apps/core/tests/test_rls_a.py apps/core/tests/test_rls_b.py -q --create-db\n' > "$GA/.release-planning/VERIFY-GATE.yml"
+touch "$GA/.release-planning/phases/07-x/07-VERIFY-GATE.yml"
+OUT="$(release_gate_audit "$GA")"
+has "whitelist of test files ⇒ no-broad-step" "$OUT" "GATE_WARN=no-broad-step"
+has "no {focused} ⇒ no-focused-step" "$OUT" "GATE_WARN=no-focused-step"
+has "--create-db in a step is flagged" "$OUT" "GATE_WARN=create-db step=test-rls"
+has "per-phase gate copy in an unfinished phase is flagged" "$OUT" "GATE_WARN=phase-local-gate"
+touch "$GA/.release-planning/phases/07-x/07-SUMMARY.md"
+hasnt "archived copy of a finished phase is history, not drift" "$(release_gate_audit "$GA")" "phase-local-gate"
+rm "$GA/.release-planning/phases/07-x/07-SUMMARY.md"
+OUT="$(run_gate "$GA" 2>/dev/null)"
+has "run_gate surfaces the audit" "$OUT" "GATE_WARN=no-broad-step"
+rm "$GA/.release-planning/VERIFY-GATE.yml" "$GA/.release-planning/phases/07-x/07-VERIFY-GATE.yml"
+OUT="$(release_gate_audit "$GA")"
+hasnt "django default gate has a broad step" "$OUT" "no-broad-step"
+hasnt "django default gate has a {focused} step" "$OUT" "no-focused-step"
+hasnt "no per-phase copies ⇒ no warning" "$OUT" "phase-local-gate"
 
 echo "── #13 GREEN cache is keyed by committed tree + commands ──"
 C="$SBX/cache"; mkdir -p "$C/.release-planning"; git -C "$C" init -q

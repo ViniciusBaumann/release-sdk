@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] — 2026-09-22
+
+Driven by a 45-day measurement of hubus: phase time was maker churn (1,534 pytest runs, 34% red,
+148 ritual RED commits), tests enshrined the implementation (49 asserts locked the phase-133 stub)
+and the root gate had degraded into a hand whitelist with no broad suite.
+
+### Added
+- `/release:statusline` + `bin/release-statusline.js`: Claude Code status bar with model/effort,
+  project, branch, live phase/task from `.release-planning/`, context bar, cost, 5h/7d limits, cache.
+- `release_gate_audit` in `release-gate-lib.sh`: `GATE_WARN=` lines (`no-broad-step`,
+  `no-focused-step`, `create-db`, `phase-local-gate`) printed by every `run_gate`; execute/quick
+  copy them into the report.
+- `tdd-executor` `<test_oracle>`: expected values come from the AC/R-XX text, never from running the
+  code; a constant where the AC says computed is hollow; hard cap of 8 test runs per task
+  (`test_runs` in the ledger).
+- `phase-verifier` hollow check for tests that enshrine a constant; the expected observable of each
+  AC is written from the SPEC before the tests are read.
+- `django-validate-commit.sh` blocks separate `test: RED` / `reproduce` commits.
+
+### Changed
+- **BREAKING** quick gate default runs `pytest {focused}` (and `vitest run {focused}` when vitest is
+  present) after lint/migrations; a quick no longer lands on lint alone.
+- Django default gate gains a `test-focused: pytest {focused}` step before the broad suite.
+- `/release:quick` escalates to `--strict` above 10 production files or 400 production lines.
+
 ## [0.28.0] — 2026-09-22
 
 Driven by the hubus 133 / moblity-app 32 post-mortem: a C4 phase landed with the live half of its

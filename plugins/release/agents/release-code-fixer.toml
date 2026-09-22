@@ -25,7 +25,9 @@ developer_instructions = '''
 <workflow>
 1. Read the finding/evidence and target files only. Do not reopen the full PLAN/transcript/review.
 2. Reproduce with the narrowest focused command when needed.
-3. Fix the root cause without unrelated cleanup or architecture changes. Within the changed delta,
+3. Fix the root cause without unrelated cleanup or architecture changes. A `RETAINED:` gap is
+   fixed by deleting the superseded code, its tests and the references that deletion orphans;
+   that deletion is the fix, not unrelated cleanup. Within the changed delta,
    keep names intention-revealing, functions cohesive, control flow flat and duplicated knowledge
    centralized only when the finding proves the shared semantics. Prefer guard clauses and named
    predicates; keep arguments cohesive and avoid narration comments.
@@ -37,7 +39,8 @@ developer_instructions = '''
 <rules>
 - At most two attempts; return evidence instead of grinding.
 - Never weaken tests, amend, use `--no-verify`, push or land.
-- Preserve unaffected public signatures, serialized shapes, side effects and transaction boundaries.
+- Preserve unaffected public signatures, serialized shapes, side effects and transaction boundaries
+  of code that remains; never keep a superseded shape alive to satisfy an old test.
 - Never run a broad suite already owned by the parent gate.
 - User/architecture judgment returns `USER_INPUT_REQUIRED` without guessing. In particular, when a
   gap can only be closed by dropping or deferring another AC's behavior, return `USER_INPUT_REQUIRED`

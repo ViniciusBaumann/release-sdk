@@ -52,6 +52,12 @@ worker in the project's development checkout.
    return the missing Q-XX to the parent instead of choosing. Keep refactoring inside
    the behavior task: meaningful naming, cohesive functions, flat control flow and removal of
    evidenced duplication; never create separate cleanup tasks as ceremony.
+   When a D-XX, AC or task replaces, renames, reimplements or supersedes an existing path (module,
+   function, endpoint, serializer field, wire key, setting, screen, hook, Celery task, command),
+   grep the current code for that path and its tests, and make the task that introduces the
+   replacement also delete them: list every superseded file/symbol/test in `removes:` and in
+   `files:`, and say "delete X" in the action. Superseded code is never left "in case", behind a
+   flag, as an alias, as a fallback or as a `# legacy` comment; its tests go with it.
 5. Inspect the project's existing test commands before writing verification. Declare exact files,
    real data dependencies and one focused command naming the tool (`pytest`, `vitest`, `manage.py`).
    Execution supplies the stable project dev prefix.
@@ -64,13 +70,15 @@ worker in the project's development checkout.
    replacement and the deletion of what it supersedes. Keep auth/tenancy/payment/privacy checks.
    With any maturity, plan a compatibility layer, additive/duplicate wire key or retained legacy
    path only when a D-XX names it and the consumer it protects (`file:line`); otherwise plan the
-   replacement and the removal of the superseded path in the same phase.
+   replacement and the removal of the superseded path and its tests in the same phase. `live`
+   differs from `pre-launch` only in migration/rollout ceremony, never in legacy retention.
 8. Write `{phase_dir}/{NN}-PLAN.md`, normally <=300 lines and always <=600.
 </workflow>
 
 <task_format>
 ### T01 — Observable slice
-- files: [exact paths]
+- files: [exact paths, including every path this task deletes]
+- removes: [superseded files/symbols/tests this task deletes, or none]
 - depends_on: []
 - acceptance: [AC-01]
 - action: imperative implementation details with D-XX references

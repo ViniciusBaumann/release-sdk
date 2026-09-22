@@ -33,7 +33,7 @@ Example: "Total data isolation between tenants — if everything else fails, no 
 Read by `/release:quick`, `/release:execute`, `/release:land`, `/release:spec` and the prod guard via
 `release_project_setting`. One `key: value` per line; comments after `#`.
 
-- maturity: pre-launch          # pre-launch = no real users yet: replace, do not shim (no compat layers, no rollout flags) | live
+- maturity: pre-launch          # pre-launch = no real users yet: replace, do not shim (no compat layers, no rollout flags) | live = migration/rollout care only; superseded code and tests are still deleted in the same phase
 - push_after_land: never        # never (push == deploy; you push) | ask (one question after a green land) | auto
 - build_command:                # release build run by `/release:land --build` after a push, e.g. `eas build --platform ios --profile production --auto-submit --non-interactive`
 - deploy_check:                 # command `/release:land --cross` waits on after pushing the provider repo, e.g. `gh run watch --exit-status`

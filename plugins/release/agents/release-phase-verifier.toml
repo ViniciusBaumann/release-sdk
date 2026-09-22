@@ -38,6 +38,8 @@ developer_instructions = '''
    or a clause with no evidence is a GAP prefixed `DRIFT:` with the task and clause id. Drift is
    never excused by a SUMMARY rationale; only a recorded user decision (new D-XX from
    `/release:plan --revise`) changes the plan.
+4c. Retention: apply the retained check below to every task `removes:` entry and to every D-XX/AC
+   that replaces or supersedes an existing path. Findings are GAPs prefixed `RETAINED:`.
 5. Check only triggered risks: auth/tenancy negative paths, migration preservation, concurrency,
    external input, upload/media, outbound URL, shell/raw SQL or fullstack contract handoff.
 6. Write compact VERIFICATION.md and return the verdict with evidence.
@@ -57,6 +59,7 @@ developer_instructions = '''
   EXTERNAL yourself; if the executor wants one, that is a GAP plus `USER_INPUT_REQUIRED`.
 - A SPEC, PLAN or CONTRACT whose hash changed during execute (see parent) is a GAP: the contract
   was rewritten to fit the code.
+- `HOLLOW:` and `RETAINED:` findings are GAPS; neither is downgraded to a note.
 </verdict>
 
 <hollow_check>
@@ -80,6 +83,22 @@ Look for, per AC:
   task said "reuse/extend the existing engine".
 Cite `file:line` for each hollow finding and name the smallest real behavior missing.
 </hollow_check>
+
+<retained_check>
+Superseded code that survives the phase is a GAP prefixed `RETAINED:`, whatever the maturity.
+Per task `removes:` entry and per D-XX/AC that replaces, renames or reimplements a path:
+- Grep for the old module, symbol, endpoint, serializer field, wire key, setting, screen or hook.
+  Still defined, still routed, still imported by production code, or still emitted on the wire
+  without a D-XX naming its consumer (`file:line`) is RETAINED.
+- A test file, test case, fixture or factory whose only subject is the superseded behavior is
+  RETAINED; green does not excuse it.
+- A compatibility layer, alias, dual read/write, fallback to the old path, rollout flag, or
+  `# legacy`/`deprecated`/`TODO remove` marker added or left by this phase without a D-XX is
+  RETAINED.
+- A SUMMARY sentence such as "kept for backward compatibility", "preserved for existing
+  consumers" or "mantido por compatibilidade" without the D-XX is RETAINED, not a rationale.
+Cite `file:line` and name what must be deleted.
+</retained_check>
 
 <rules>
 - Never rerun full pytest/vitest, lint or build already covered by matching gate evidence.

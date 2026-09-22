@@ -36,7 +36,8 @@ description: >
    Both are removed at land time. Read `maturity` with
    `release_effective_maturity "$ROOT" "$PHASE_DIR"` (most restrictive across this repo, the SPEC
    and the paired repo); tell the worker `maturity=pre-launch` when set, so it replaces instead of
-   shimming.
+   shimming. Empty means PROJECT.md has no `maturity:`; print `WARN: maturity unset in PROJECT.md;
+   treating as live`. In every maturity the worker deletes what a task supersedes.
 7. Freeze the contract: `shasum -a 256 "$PHASE_DIR"/*-SPEC.md "$PHASE_DIR"/*-PLAN.md
    "$PHASE_DIR"/*-CONTRACT.md 2>/dev/null > "$PHASE_DIR/.contract-sha"`. SPEC, PLAN and CONTRACT are
    read-only until land. Execute, the worker, the fixer and the checker never write them, never add
@@ -126,8 +127,10 @@ dispatch with a map, protocol, composition or polymorphism only when it is simpl
 Behavior changes get a focused unit test first. Refactoring starts from a green unit or
 characterization test, proceeds in reversible baby steps and reruns that test after each logical
 step. Internal simplification must preserve public signatures, serialized shapes, exceptions,
-ordering, side effects and transaction boundaries. These checks are part of normal execution; do
-not create a separate cleanup phase or broaden task scope.
+ordering, side effects and transaction boundaries of the code that remains; what a task supersedes
+is deleted with its tests in the same commit, never kept behind an alias, flag, fallback or
+`# legacy` marker. These checks are part of normal execution; do not create a separate cleanup
+phase or broaden task scope.
 
 ## Verification and landing
 
@@ -143,8 +146,8 @@ not create a separate cleanup phase or broaden task scope.
    checks acceptance/locks/risk surfaces without rerunning the suite. Its verdict is the literal
    word `PASS` (optionally `PASS external=AC-XX,...` for criteria the SPEC marked
    `[external-evidence]` before execute started) or `GAPS`. Any other wording — "PASS with declared
-   pending", "pendências declaradas", "partial", "next slice" — is GAPS. Half-met criteria and
-   `HOLLOW:` findings are GAPS.
+   pending", "pendências declaradas", "partial", "next slice" — is GAPS. Half-met criteria,
+   `HOLLOW:` and `RETAINED:` (superseded code or tests still present) findings are GAPS.
 5. `--loop` may feed RED/gaps to `release:code-fixer` under economy-based caps. Without `--loop`,
    stop after the first RED/GAPS and retain the branch/working tree for `--resume`.
    A worker or fixer returning `plan_conflict`, `needs_scope_reduction` or `USER_INPUT_REQUIRED` is

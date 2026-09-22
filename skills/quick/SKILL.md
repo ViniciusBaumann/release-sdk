@@ -29,10 +29,13 @@ Score C0-C4 with `release-economy-lib.sh`.
 
 `--strict` forces the full gate and independent checker but does not create a fake phase.
 
-Read `maturity` with `release_effective_maturity "$MAIN_ROOT"` (bin/release-merge-lib.sh). When it is
+Read `maturity` with `release_effective_maturity "$MAIN_ROOT"` (bin/release-merge-lib.sh). Empty means
+PROJECT.md has no `maturity:`; print `WARN: maturity unset in PROJECT.md; treating as live`. When it is
 `pre-launch`, do not add backward-compatibility shims, rollout flags or legacy fallbacks: replace and
 delete. Security, tenancy and data-loss floors are unchanged. With any maturity, keep a legacy path
-only when the task names the consumer it protects.
+only when the task names the consumer it protects with `file:line`; otherwise a quick that replaces a
+path deletes the superseded code and its tests in the same commit. `live` never means "keep the old
+one too".
 
 ## Checkout
 

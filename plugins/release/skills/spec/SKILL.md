@@ -60,12 +60,17 @@ paired repo's PROJECT.md, because a wire/compat decision belongs to the CONSUMER
 provider's. `pre-launch` means no real users yet: scope out backward compatibility, rollout flags,
 dual-write/dual-read, additive duplicate keys and legacy fallbacks unless a D-XX explicitly asks for
 them; migrations may drop and rename. Security, tenancy and data-loss floors do not change. Write the
-effective value into the SPEC frontmatter so plan/execute inherit it.
+effective value into the SPEC frontmatter so plan/execute inherit it. An empty value means
+PROJECT.md has no `maturity:` under `## Delivery settings`: print
+`WARN: maturity unset in PROJECT.md; treating as live` and write `maturity: live` to the SPEC.
+`live` never permits legacy retention; it only keeps migration/rollout care.
 
 With any maturity, a D-XX that keeps a legacy path or adds a compatibility layer must name the
 consumer it protects with `file:line` evidence of who reads the old shape today. A claim such as
 "the app in production reads this key" without that evidence is not a decision; ask the user with
-the grep result in front of them.
+the grep result in front of them. When the outcome replaces, renames or reimplements an existing
+path, the SPEC names it under `## Out` as "superseded: <path> (deleted with its tests)"; the default
+in every maturity is replacement plus deletion in the same phase.
 
 Acceptance criteria are provable inside the phase by a focused test on the production path. The
 only exception is evidence that cannot exist in the development environment (real captured data,

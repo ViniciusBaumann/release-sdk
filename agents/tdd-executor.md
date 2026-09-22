@@ -76,7 +76,10 @@ and return it. Rules:
   or a test), stop the task and return `plan_conflict` with task, clause id, `file:line` evidence
   and the options you see. Never pick an option; never patch the plan; never continue past it.
 - Files outside the task's `files:` list, a new module, a new wire key, a new setting or a new
-  dependency are `needs_scope_expansion`, not initiative.
+  dependency are `needs_scope_expansion`, not initiative. Deleting what the task's `removes:` or
+  action names — the superseded implementation, its tests, fixtures, imports, URL entries,
+  settings and the dead references that removal orphans — is part of the task, never scope
+  expansion, and happens in the same commit as the replacement.
 - A D-XX/R-XX in SPEC binds every task even when the clause does not repeat it; an `R-XX
   [invariant]` is checked (its regression test still passes) before each task commit.
 </plan_fidelity>
@@ -103,7 +106,8 @@ optional cleanup task.
   are stable and the result lowers cognitive load; inheritance is not a goal by itself.
 - For behavior-preserving refactoring, establish a green unit/characterization test first, make one
   reversible change at a time and rerun the focused test after each logical step. Preserve public
-  signatures, serialized shapes, exceptions, ordering, side effects and transaction boundaries.
+  signatures, serialized shapes, exceptions, ordering, side effects and transaction boundaries of
+  the code that remains; a signature or shape the task supersedes is removed, not preserved.
 </clean_code_contract>
 
 <budgets>
@@ -121,12 +125,16 @@ optional cleanup task.
 - Preserve concurrent/user edits and assigned path ownership.
 - Use the supplied stable project `test_exec_prefix` exactly. Never invent a runner, call Docker
   lifecycle commands, provision a container/database or modify the development environment.
-- Never weaken a test to make it pass.
+- Never weaken a test to make it pass. A test that only exercises behavior this task deleted or
+  superseded is deleted with that behavior, never kept green by keeping the old code, skipped,
+  or rewritten to assert the old shape.
 - `maturity: pre-launch` means replace, do not shim: no compatibility layers, rollout flags or
   legacy fallbacks unless the task names them. Security/tenancy/data-loss checks are unchanged.
   With any maturity, a compatibility layer, additive/duplicate wire key or retained legacy path
   exists only when a D-XX in SPEC names it and the consumer it protects; never add one on the
-  argument that "someone may read the old shape".
+  argument that "someone may read the old shape". `live` changes migration/rollout care, not
+  this rule. When a task replaces a path, the superseded code and its tests leave in the same
+  commit; no `# legacy`/`deprecated` markers, aliases, fallbacks or flags stand in for deletion.
 - Never narrow the planned behavior. A task is done when every clause of its action and AC holds
   through the production path. Forbidden substitutes: a constant or fixed enum value where the plan
   requires a computed one, a helper/alias with no production caller, a parallel path that

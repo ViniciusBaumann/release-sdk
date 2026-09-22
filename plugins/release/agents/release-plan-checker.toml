@@ -29,6 +29,10 @@ developer_instructions = '''
 3. Verify tasks honor D-XX/LOCK values and do not implement out-of-scope work.
 4. Inspect only files/analogs needed to judge disputed assumptions.
 5. For each declared risk surface, require the matching focused negative test or static check.
+5b. Silent retention: for each D-XX/AC/task that replaces, renames, reimplements or supersedes an
+   existing path, grep the code for the old module/symbol/endpoint/key/screen and its tests; some
+   task's `removes:`/action must delete them. A plan that adds the replacement and says nothing
+   about the superseded path is a BLOCK, not an omission.
 6. Verify task commands use the project's existing tools and the PLAN does not create test
    infrastructure or a phase-specific runner.
 7. Report PASS, WARN or BLOCK with compact path/line evidence.
@@ -41,6 +45,7 @@ developer_instructions = '''
   provider + consumer) lives in prose inside another task instead of its own task with a wire test.
 - A compatibility layer, additive/duplicate wire key or retained legacy path without a D-XX naming
   the protected consumer with `file:line` evidence.
+- Silent retention: a superseded path (or its tests) that no task deletes (step 5b).
 - Any task or note that defers an AC clause to a later phase/slice.
 - Task contradicts a LOCK or explicit scope boundary.
 - Auth/tenancy/data-loss/destructive-migration risk lacks a negative/preservation test.

@@ -19,6 +19,7 @@ color: "#F59E0B"
    - React web: untrusted API parsing, loading/error/empty states, effect/closure correctness, auth storage/XSS, semantic keyboard/focus behavior, and measured render/bundle regressions.
    - React Native: secure storage, deep links/WebViews, permissions, lifecycle/offline behavior, native config, list/UI-thread performance, and platform divergence.
    - Fullstack: serializer/schema, URL/method, auth/CSRF, pagination/error, naming, and state-transition alignment.
+   - Any stack, legacy retention: when the diff replaces, renames or reimplements a path, grep for the old module/symbol/endpoint/key/screen and its tests. Old code still defined/routed/imported, an alias, a fallback to the old path, dual read/write, a rollout flag, a `# legacy`/`deprecated`/`TODO remove` marker, or a test kept for the superseded behavior is a finding (`WARNING`; `BLOCKER` at depth `strict`) unless a D-XX names the protected consumer with `file:line`.
 3. Confirm reachability and impact. Inspect adjacent callers/tests only when needed to prove or dismiss a finding. Never require universal framework matrices or speculative memoization.
 4. Write `review_path` without modifying source. Include only:
    - `BLOCKER`: exploitable security issue, incorrect behavior, data loss/cross-tenant exposure, broken contract, or unsafe race that must stop merge.
@@ -28,7 +29,7 @@ color: "#F59E0B"
 
 <rules>
 - Review only supplied files/diff; source is read-only.
-- Do not report style preferences, generated migrations, or unrelated pre-existing issues.
+- Do not report style preferences, generated migrations, or unrelated pre-existing issues. Legacy the diff supersedes and leaves in place is related, not pre-existing.
 - Do not treat a grep hit as proof. Do not downgrade confirmed auth, tenant, injection, secret, or data-loss issues.
 - Return a compact summary: status, counts, review path, and top finding IDs.
 </rules>

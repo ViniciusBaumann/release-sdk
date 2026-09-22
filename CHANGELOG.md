@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.0] — 2026-09-22
+
+Driven by hubus/moblity carrying ~700 legacy markers and 113 legacy-flavored test files: the
+anti-legacy rule only landed in 0.29.0, nothing verified deletion after execute, and neither
+PROJECT.md declared `maturity`.
+
+### Added
+- `feature-planner` task field `removes:`; the task that replaces a path deletes the superseded
+  code and its tests in the same task.
+- `plan-checker` step 5b: silent retention (SPEC supersedes X, no task deletes X) is a BLOCK.
+- `phase-verifier` `<retained_check>`: `RETAINED:` findings (old symbol/route/key still defined,
+  test kept for superseded behavior, alias/fallback/flag/`# legacy` marker without a D-XX) are GAPS.
+- `code-reviewer` legacy-retention check on the diff (WARNING; BLOCKER at depth strict).
+- `spec`, `quick`, `execute`: `WARN: maturity unset in PROJECT.md; treating as live`.
+
+### Changed
+- **BREAKING:** replace-and-delete is the default in every maturity. `live` only changes
+  migration/rollout care; superseded code and tests leave in the same commit. Legacy survives only
+  when a D-XX names the protected consumer with `file:line`.
+- `tdd-executor`: deleting what `removes:` names is in scope, never `needs_scope_expansion`; a test
+  for deleted behavior is deleted, not kept green; signature preservation applies to code that remains.
+- `code-fixer`: a `RETAINED:` gap is fixed by deletion, which is not "unrelated cleanup".
+- `release-efficiency-policy` hook: deleting what a change supersedes is part of the smallest
+  complete change.
+
 ## [0.29.0] — 2026-09-22
 
 Driven by a 45-day measurement of hubus: phase time was maker churn (1,534 pytest runs, 34% red,
